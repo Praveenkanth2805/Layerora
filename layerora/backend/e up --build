@@ -1,0 +1,10 @@
+[0;1;32m●[0m podman.socket - Podman API Socket
+     Loaded: loaded (]8;;file://parrot/usr/lib/systemd/user/podman.socket\/usr/lib/systemd/user/podman.socket]8;;\; [0;1;32menabled[0m; preset: [0;1;32menabled[0m)
+     Active: [0;1;32mactive (listening)[0m since Sun 2026-08-30 22:04:29 IST; 1s ago
+ Invocation: 4aa393eda11d4a68bc5314fbba7ef325
+   Triggers: ● podman.service
+       Docs: ]8;;man:podman-system-service(1)\man:podman-system-service(1)]8;;\
+     Listen: /run/user/1000/podman/podman.sock (Stream)
+     CGroup: /user.slice/user-1000.slice/user@1000.service/app.slice/podman.socket
+
+Aug 30 22:04:29 parrot systemd[1499]: Listening on podman.socket - Podman API Socket.
