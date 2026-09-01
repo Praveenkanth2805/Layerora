@@ -1,8 +1,10 @@
 from pydantic_settings import BaseSettings
 from pydantic import Field, SecretStr, validator
 from functools import lru_cache
-
+from pathlib import Path
 class Settings(BaseSettings):
+    BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
+    BACKEND_URL: str = "http://127.0.0.1:8000"
     # App
     APP_NAME: str = "Layerora"
     DEBUG: bool = False

@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
 from app.core.logging import setup_logging
 from app.api.v1 import auth, designs, credits, admin, webhooks
-
+from fastapi.staticfiles import StaticFiles
 settings = get_settings()
 setup_logging()
 
@@ -26,7 +26,7 @@ app.include_router(designs.router, prefix="/api/v1")
 app.include_router(credits.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
 app.include_router(webhooks.router, prefix="/api/v1")
-
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 @app.get("/health")
 async def health():
     return {"status": "ok"}

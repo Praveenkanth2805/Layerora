@@ -44,7 +44,7 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('users',
-    sa.Column('email', sa.String(length=255), nullable=False),
+    sa.Column('email', sa.String(length=255), nullable=True),
     sa.Column('name', sa.String(length=100), nullable=True),
     sa.Column('avatar_url', sa.String(length=500), nullable=True),
     sa.Column('auth_provider', sa.Enum('GOOGLE', 'EMAIL', name='authprovider'), nullable=False),

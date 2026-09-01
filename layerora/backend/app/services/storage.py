@@ -1,42 +1,54 @@
-import boto3
-from botocore.exceptions import ClientError
-from app.core.config import get_settings
-from PIL import Image
+from pathlib import Path
 import io
+
+from PIL import Image
+
+from app.core.config import get_settings
+
 
 class StorageService:
     def __init__(self):
         settings = get_settings()
-        self.s3 = boto3.client(
-            "s3",
-            aws_access_key_id=settings.S3_ACCESS_KEY.get_secret_value(),
-            aws_secret_access_key=settings.S3_SECRET_KEY.get_secret_value(),
-            endpoint_url=settings.S3_ENDPOINT_URL,
-            region_name=settings.S3_REGION,
-        )
-        self.bucket = settings.S3_BUCKET
 
-    async def upload_file(self, key: str, data: bytes, content_type: str = "image/png"):
-        self.s3.put_object(Bucket=self.bucket, Key=key, Body=data, ContentType=content_type)
+        self.base_dir = Path(settings.BASE_DIR) / "uploads"
+        self.base_dir.mkdir(parents=True, exist_ok=True)
+
+    async def upload_file(
+        self,
+        key: str,
+        data: bytes,
+        content_type: str = "image/png",
+    ):
+        file_path = self.base_dir / key
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        file_path.write_bytes(data)
+
         return key
 
     async def upload_png(self, key: str, image: Image.Image):
         buffer = io.BytesIO()
         image.save(buffer, format="PNG")
-        await self.upload_file(key, buffer.getvalue(), content_type="image/png")
+
+        return await self.upload_file(
+            key,
+            buffer.getvalue(),
+            content_type="image/png",
+        )
 
     async def download(self, key: str) -> bytes:
-        try:
-            resp = self.s3.get_object(Bucket=self.bucket, Key=key)
-            return resp["Body"].read()
-        except ClientError as e:
-            if e.response["Error"]["Code"] == "NoSuchKey":
-                raise FileNotFoundError(f"Key {key} not found")
-            raise
+        file_path = self.base_dir / key
 
-    def generate_presigned_url(self, key: str, expires: int = 3600) -> str:
-        return self.s3.generate_presigned_url(
-            "get_object",
-            Params={"Bucket": self.bucket, "Key": key},
-            ExpiresIn=expires,
-        )
+        if not file_path.exists():
+            raise FileNotFoundError(f"File {key} not found")
+
+        return file_path.read_bytes()
+
+    def generate_presigned_url(
+        self,
+        key: str,
+        expires: int = 3600,
+    ) -> str:
+        settings = get_settings()
+
+        return f"{settings.BACKEND_URL}/uploads/{key}"

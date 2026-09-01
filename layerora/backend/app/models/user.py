@@ -11,7 +11,7 @@ class AuthProvider(str, enum.Enum):
 class User(BaseModel):
     __tablename__ = "users"
 
-    email = Column(String(255), unique=True, index=True, nullable=False)
+    email = Column(String(255), unique=True, index=True, nullable=True)
     name = Column(String(100), nullable=True)
     avatar_url = Column(String(500), nullable=True)
     auth_provider = Column(Enum(AuthProvider), nullable=False)
