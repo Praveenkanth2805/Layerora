@@ -1,12 +1,16 @@
-from pydantic import BaseModel
-from typing import Optional, Dict, Any, List
+from datetime import datetime
 from enum import Enum
+from typing import Any, Dict, List
+
+from pydantic import BaseModel
+
 
 class DesignStatus(str, Enum):
     DRAFT = "draft"
     PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
+
 
 class LayerType(str, Enum):
     BACKGROUND = "background"
@@ -16,6 +20,7 @@ class LayerType(str, Enum):
     TEXT = "text"
     SHAPE = "shape"
     DECORATION = "decoration"
+
 
 class LayerCreate(BaseModel):
     layer_type: LayerType
@@ -27,14 +32,17 @@ class LayerCreate(BaseModel):
     font_size: int | None = None
     color: str | None = None
 
+
 class LayerOut(LayerCreate):
     id: str
     design_id: str
+
 
 class DesignCreate(BaseModel):
     name: str = "Untitled"
     canvas_width: int = 1024
     canvas_height: int = 1024
+
 
 class DesignOut(BaseModel):
     id: str
@@ -45,5 +53,10 @@ class DesignOut(BaseModel):
     status: DesignStatus
     thumbnail_key: str | None
     layers: List[LayerOut] = []
-    created_at: str
-    updated_at: str
+    created_at: datetime
+    updated_at: datetime
+
+class LayerOut(LayerCreate):
+    id: str
+    design_id: str
+    object_url: str | None = None

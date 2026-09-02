@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { fabric } from 'fabric';
+import { FabricObject } from 'fabric';
 import { api } from '@/lib/api-client';
 
 export interface Layer {
@@ -11,14 +11,44 @@ export interface Layer {
   textContent?: string;
 }
 
+interface ApiLayer {
+  id: string;
+  design_id: string;
+  layer_type: string;
+  name: string;
+  object_key: string | null;
+  object_url: string | null;
+  properties: any;
+  text_content?: string | null;
+}
+
+interface ApiDesign {
+  id: string;
+  user_id: string;
+  name: string;
+  canvas_width: number;
+  canvas_height: number;
+  status: string;
+  thumbnail_key: string | null;
+  layers: ApiLayer[];
+  created_at: string;
+  updated_at: string;
+}
+
 interface EditorState {
-  design: { id: string; canvasWidth: number; canvasHeight: number; layers: Layer[] } | null;
+  design: {
+    id: string;
+    canvasWidth: number;
+    canvasHeight: number;
+    layers: Layer[];
+  } | null;
+
   selectedObjectId: string | null;
   isLoading: boolean;
-  // actions
+
   loadDesign: (id: string) => Promise<void>;
-  updateLayer: (fabricObject: fabric.Object) => Promise<void>;
-  setSelectedObject: (obj: fabric.Object | null) => void;
+  updateLayer: (fabricObject: FabricObject) => Promise<void>;
+  setSelectedObject: (obj: FabricObject | null) => void;
   export: (format: 'png' | 'jpg') => void;
 }
 
@@ -29,61 +59,95 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
   loadDesign: async (id: string) => {
     set({ isLoading: true });
+
     try {
-      const data = await api.get(`/designs/${id}`);
-      set({ design: data });
-    } catch (e) {
-      // handle error
+      const data = await api.get<ApiDesign>(`/designs/${id}`);
+
+      const layers: Layer[] = data.layers.map((layer) => ({
+        id: layer.id,
+        name: layer.name,
+        type: layer.layer_type,
+        objectUrl: layer.object_url || '',
+        properties: layer.properties,
+        textContent: layer.text_content || undefined,
+      }));
+
+      set({
+        design: {
+          id: data.id,
+          canvasWidth: data.canvas_width,
+          canvasHeight: data.canvas_height,
+          layers,
+        },
+      });
+    } catch (error) {
+      console.error('Failed to load design:', error);
     } finally {
       set({ isLoading: false });
     }
   },
 
-  updateLayer: async (fabricObject: fabric.Object) => {
+  updateLayer: async (fabricObject: FabricObject) => {
     const { design } = get();
+
     if (!design) return;
-    // find layer by id (stored in fabricObject)
-    const layer = design.layers.find(l => l.id === fabricObject.id);
+
+    const layerId = (fabricObject as any).layerId;
+
+    if (!layerId) return;
+
+    const layer = design.layers.find(
+      (item) => item.id === layerId
+    );
+
     if (!layer) return;
 
-    // update properties
-    const updated = {
-      ...layer,
-      properties: {
-        left: fabricObject.left,
-        top: fabricObject.top,
-        scaleX: fabricObject.scaleX,
-        scaleY: fabricObject.scaleY,
-        angle: fabricObject.angle,
-        // ...
-      }
+    const properties = {
+      ...layer.properties,
+      left: fabricObject.left,
+      top: fabricObject.top,
+      scaleX: fabricObject.scaleX,
+      scaleY: fabricObject.scaleY,
+      angle: fabricObject.angle,
     };
 
-    // optimistic update + debounced API call
-    // (use lodash.debounce in effect)
-    set(state => ({
-      design: {
-        ...state.design!,
-        layers: state.design!.layers.map(l => l.id === updated.id ? updated : l),
-      },
+    set((state) => ({
+      design: state.design
+        ? {
+            ...state.design,
+            layers: state.design.layers.map((item) =>
+              item.id === layerId
+                ? {
+                    ...item,
+                    properties,
+                  }
+                : item
+            ),
+          }
+        : null,
     }));
 
-    // Actually call API after debounce
-    await api.patch(`/designs/${design.id}/layer/${layer.id}`, updated.properties);
+    try {
+      await api.patch(
+        `/designs/${design.id}/layer/${layerId}`,
+        properties
+      );
+    } catch (error) {
+      console.error('Failed to update layer:', error);
+    }
   },
 
   setSelectedObject: (obj) => {
-    set({ selectedObjectId: obj?.id || null });
+    set({
+      selectedObjectId: obj
+        ? (obj as any).layerId || null
+        : null,
+    });
   },
 
   export: (format) => {
-    const canvas = fabricRef.current; // need a global ref
-    if (!canvas) return;
-    const dataUrl = canvas.toDataURL({ format, quality: 1 });
-    // download
-    const link = document.createElement('a');
-    link.href = dataUrl;
-    link.download = `design.${format}`;
-    link.click();
+    console.warn(
+      `Export ${format} will be connected to the Fabric canvas next.`
+    );
   },
 }));

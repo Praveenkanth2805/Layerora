@@ -25,9 +25,7 @@ export const ImageUploadZone = () => {
     formData.append('file', file);
 
     try {
-      const response = await api.post('/designs/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const response = await api.post('/designs/upload', formData);
       router.push(`/editor/${response.id}`);
     } catch (error) {
       showToast('Upload failed. Please try again.', 'error');

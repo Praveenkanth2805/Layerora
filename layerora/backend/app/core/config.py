@@ -41,7 +41,7 @@ class Settings(BaseSettings):
 
     # Business
     GUEST_FREE_IMAGE_LIMIT: int = 1
-    DAILY_FREE_EXTRACTIONS: int = 2
+    DAILY_FREE_EXTRACTIONS: int = 20
     DAILY_FREE_ASK_AI: int = 0   # not yet enabled
     MAX_DESIGNS_FREE: int = 10
     MAX_LAYERS_PER_DESIGN: int = 50
@@ -77,3 +77,5 @@ class Settings(BaseSettings):
 @lru_cache()
 def get_settings() -> Settings:
     return Settings()
+
+settings = get_settings()

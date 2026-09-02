@@ -1,61 +1,128 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { fabric } from 'fabric';
+import { Canvas as FabricCanvas, FabricImage } from 'fabric';
 import { useEditorStore } from '@/lib/stores/editor';
-import { useUIStore } from '@/lib/stores/ui';
 
 export const Canvas = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const fabricRef = useRef<fabric.Canvas | null>(null);
-  const { design, setSelectedObject, updateLayer } = useEditorStore();
+  const fabricRef = useRef<FabricCanvas | null>(null);
+
+  const {
+    design,
+    setSelectedObject,
+    updateLayer,
+  } = useEditorStore();
 
   useEffect(() => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || !design) return;
 
-    const canvas = new fabric.Canvas(canvasRef.current, {
-      width: design?.canvasWidth || 1024,
-      height: design?.canvasHeight || 1024,
-      backgroundColor: '#ffffff',
-      preserveObjectStacking: true,
-    });
+    let canvas: FabricCanvas | null = null;
 
-    fabricRef.current = canvas;
+    const initCanvas = async () => {
+      if (!canvasRef.current || !design) return;
 
-    // Load layers from design
-    if (design?.layers) {
-      design.layers.forEach(layer => {
-        fabric.Image.fromURL(layer.objectUrl, (img) => {
-          img.set({
-            left: layer.properties.left,
-            top: layer.properties.top,
-            scaleX: layer.properties.scaleX,
-            scaleY: layer.properties.scaleY,
-            // ... other props
-          });
-          canvas.add(img);
-        }, { crossOrigin: 'anonymous' });
+      canvas = new FabricCanvas(canvasRef.current, {
+        width: design.canvasWidth,
+        height: design.canvasHeight,
+        backgroundColor: '#ffffff',
+        preserveObjectStacking: true,
       });
-    }
 
-    // Selection listener
-    canvas.on('selection:created', (e) => {
-      const selected = e.selected?.[0];
-      if (selected) setSelectedObject(selected);
-    });
+      fabricRef.current = canvas;
 
-    canvas.on('object:modified', (e) => {
-      const obj = e.target;
-      if (obj) {
-        // Debounced autosave
-        updateLayer(obj);
+      console.log('DESIGN:', design);
+      console.log('LAYERS:', design.layers);
+
+      // Background should always be rendered first.
+      const sortedLayers = [...design.layers].sort((a, b) => {
+        if (a.type === 'background') return -1;
+        if (b.type === 'background') return 1;
+        return 0;
+      });
+
+      for (const layer of sortedLayers) {
+        if (!layer.objectUrl) {
+          console.warn(
+            'Layer has no object URL:',
+            layer.name
+          );
+          continue;
+        }
+
+        try {
+          const img = await FabricImage.fromURL(
+            layer.objectUrl,
+            {
+              crossOrigin: 'anonymous',
+            }
+          );
+
+          img.set({
+            left: layer.properties.left ?? 0,
+            top: layer.properties.top ?? 0,
+            scaleX: layer.properties.scaleX ?? 1,
+            scaleY: layer.properties.scaleY ?? 1,
+            angle: layer.properties.angle ?? 0,
+          });
+
+          // Connect Fabric object with Layer database record.
+          (img as any).layerId = layer.id;
+
+          canvas.add(img);
+        } catch (error) {
+          console.error(
+            `Failed to load layer: ${layer.name}`,
+            error
+          );
+        }
       }
-    });
+
+      canvas.renderAll();
+
+      canvas.on('selection:created', (e) => {
+        const selected = e.selected?.[0];
+
+        if (selected) {
+          setSelectedObject(selected);
+        }
+      });
+
+      canvas.on('selection:updated', (e) => {
+        const selected = e.selected?.[0];
+
+        if (selected) {
+          setSelectedObject(selected);
+        }
+      });
+
+      canvas.on('selection:cleared', () => {
+        setSelectedObject(null);
+      });
+
+      canvas.on('object:modified', (e) => {
+        if (e.target) {
+          updateLayer(e.target);
+        }
+      });
+    };
+
+    initCanvas();
 
     return () => {
-      canvas.dispose();
+      canvas?.dispose();
+      fabricRef.current = null;
     };
-  }, [design]);
+  }, [
+    design,
+    setSelectedObject,
+    updateLayer,
+  ]);
 
-  return <canvas ref={canvasRef} />;
+  return (
+    <canvas
+      ref={canvasRef}
+      className="block"
+    />
+  );
 };
