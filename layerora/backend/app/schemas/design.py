@@ -32,12 +32,6 @@ class LayerCreate(BaseModel):
     font_size: int | None = None
     color: str | None = None
 
-
-class LayerOut(LayerCreate):
-    id: str
-    design_id: str
-
-
 class DesignCreate(BaseModel):
     name: str = "Untitled"
     canvas_width: int = 1024

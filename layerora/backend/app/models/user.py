@@ -35,3 +35,8 @@ class User(BaseModel):
         back_populates="user",
         cascade="all, delete"
 )
+watermark_jobs = relationship(
+    "WatermarkJob",
+    back_populates="user",
+    cascade="all, delete",
+)

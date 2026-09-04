@@ -5,3 +5,4 @@ from .credit_package import CreditPackage
 from .payment import Payment
 from .layer import Layer
 from .config import Config
+from .watermark_remover import WatermarkJob
