@@ -19,3 +19,5 @@ redis==6.4.0
 
 razorpay==1.4.2
 pillow>=11.3.0
+opencv-python-headless==4.12.0.88
+numpy==2.2.6

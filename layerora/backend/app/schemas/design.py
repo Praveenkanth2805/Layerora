@@ -37,7 +37,11 @@ class DesignCreate(BaseModel):
     canvas_width: int = 1024
     canvas_height: int = 1024
 
-
+class LayerOut(LayerCreate):
+    id: str
+    design_id: str
+    object_url: str | None = None
+    
 class DesignOut(BaseModel):
     id: str
     user_id: str
@@ -50,7 +54,3 @@ class DesignOut(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-class LayerOut(LayerCreate):
-    id: str
-    design_id: str
-    object_url: str | None = None

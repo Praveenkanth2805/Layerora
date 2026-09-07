@@ -1,4 +1,3 @@
-# backend/app/models/user.py
 from sqlalchemy import Column, String, Boolean, Enum
 from sqlalchemy.orm import relationship
 from .base import BaseModel
@@ -15,28 +14,24 @@ class User(BaseModel):
     name = Column(String(100), nullable=True)
     avatar_url = Column(String(500), nullable=True)
     auth_provider = Column(Enum(AuthProvider), nullable=False)
-    hashed_password = Column(String(255), nullable=True)  # only for email/password
+    hashed_password = Column(String(255), nullable=True)
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
-    guest_identifier = Column(String(64), unique=True, nullable=True)  # for anonymous
+    guest_identifier = Column(String(64), unique=True, nullable=True)
 
-    # Relationships
     designs = relationship("Design", back_populates="user", cascade="all, delete")
-    # credit_transactions = relationship("CreditTransaction", back_populates="user")
     credit_transactions = relationship(
-    "CreditTransaction",
-    back_populates="user",
-    cascade="all, delete-orphan",
-)
-    # credit_purchases = relationship("CreditPurchase", back_populates="user")
-
+        "CreditTransaction",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
     payments = relationship(
         "Payment",
         back_populates="user",
-        cascade="all, delete"
-)
-watermark_jobs = relationship(
-    "WatermarkJob",
-    back_populates="user",
-    cascade="all, delete",
-)
+        cascade="all, delete",
+    )
+    watermark_jobs = relationship(
+        "WatermarkJob",
+        back_populates="user",
+        cascade="all, delete",
+    )

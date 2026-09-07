@@ -8,6 +8,34 @@ import { api } from '@/lib/api-client';
 
 type Tool = 'layer-split' | 'watermark-remover';
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+const optimizeImage = async (file: File): Promise<File> => {
+  if (file.size <= 5 * 1024 * 1024) return file;
+
+  const bitmap = await createImageBitmap(file);
+  const canvas = document.createElement('canvas');
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return file;
+
+  ctx.drawImage(bitmap, 0, 0);
+  bitmap.close();
+
+  const blob = await new Promise<Blob | null>((resolve) =>
+    canvas.toBlob(resolve, file.type, 1)
+  );
+
+  if (!blob || blob.size >= file.size) return file;
+
+  return new File([blob], file.name, {
+    type: file.type,
+    lastModified: file.lastModified,
+  });
+};
+
 export const ImageUploadZone = () => {
   const [selectedTool, setSelectedTool] = useState<Tool | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -15,20 +43,26 @@ export const ImageUploadZone = () => {
   const { showToast } = useUIStore();
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
-    if (!file) return;
+    const originalFile = acceptedFiles[0];
+    if (!originalFile) return;
 
-    if (file.size > 5 * 1024 * 1024) {
-      showToast('File too large. Max 5MB.', 'error');
+    if (originalFile.size > MAX_FILE_SIZE) {
+      showToast('File too large. Max 10MB.', 'error');
       return;
     }
 
     setUploading(true);
 
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
+      let file = originalFile;
+
+      if (selectedTool === 'watermark-remover' && file.size > 5 * 1024 * 1024) {
+        file = await optimizeImage(file);
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+
       if (selectedTool === 'layer-split') {
         const response = await api.post('/designs/upload', formData);
         router.push(`/editor/${response.id}`);
@@ -37,7 +71,7 @@ export const ImageUploadZone = () => {
 
       const response = await api.post('/watermark-remover/upload', formData);
       router.push(`/watermark-remover/${response.id}`);
-    } catch (error) {
+    } catch {
       showToast('Upload failed. Please try again.', 'error');
     } finally {
       setUploading(false);
@@ -126,7 +160,7 @@ export const ImageUploadZone = () => {
           <div>
             <p>Drag & drop an image, or click to browse</p>
             <p className="mt-2 text-sm text-gray-500">
-              PNG, JPG, WebP up to 5MB
+              PNG, JPG, WebP up to 10MB
             </p>
             <p className="mt-4 text-xs text-blue-500">
               First image free • No signup required

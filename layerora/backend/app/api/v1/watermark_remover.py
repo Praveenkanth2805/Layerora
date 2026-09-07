@@ -6,10 +6,12 @@ from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.user import User, AuthProvider
 from app.models.watermark_remover import WatermarkJob
-from app.schemas.watermark_remover import WatermarkJobOut, WatermarkJobUpdate
+from app.schemas.watermark_remover import WatermarkJobOut, WatermarkProcessRequest, WatermarkJobUpdate
 from app.services.storage import StorageService
 from app.services.credit_service import CreditService
-
+from app.tasks.watermark_processing import process_watermark
+import os
+from app.core.config import get_settings
 router = APIRouter(prefix="/watermark-remover", tags=["Watermark Remover"])
 
 @router.post("/upload")
@@ -90,6 +92,10 @@ async def get_watermark_job(
     current_user: User | None = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    settings = get_settings()
+
+    print("API CWD:", os.getcwd())
+    print("API DATABASE URL:", settings.DATABASE_URL.get_secret_value())
     if current_user is None:
         guest_identifier = request.cookies.get("guest_identifier")
         if not guest_identifier:
@@ -107,17 +113,27 @@ async def get_watermark_job(
         )
     )
     job = result.scalar_one_or_none()
-
+    print(
+        "API JOB:",
+        job.id,
+        "STATUS:",
+        job.status,
+        "RESULT KEY:",
+        job.result_key,
+    )
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
-
     return {
         "id": job.id,
         "user_id": job.user_id,
         "original_key": job.original_key,
         "original_url": StorageService().generate_presigned_url(job.original_key),
         "mask_key": job.mask_key,
-        "result_key": job.result_key,
+        "result_url": (
+            StorageService().generate_presigned_url(job.result_key)
+            if job.result_key
+            else None
+        ),
         "mode": job.mode,
         "text": job.text,
         "selection": job.selection,
@@ -158,11 +174,11 @@ async def update_watermark_job(
     if job.status != "uploaded":
         raise HTTPException(status_code=400, detail="Job cannot be modified")
 
-    if data.mode in {"logo", "custom"} and not data.selection:
-        raise HTTPException(status_code=400, detail="Selection is required for this mode")
-
+    # if data.mode in {"logo", "custom"} and not data.selection:
+    #     raise HTTPException(status_code=400, detail="Selection is required for this mode")
     if data.mode == "text" and not data.text:
-        raise HTTPException(status_code=400, detail="Text is required for text mode")
+        raise HTTPException( status_code=400,detail="Text is required for text mode")
+    
 
     job.mode = data.mode
     job.text = data.text
@@ -176,11 +192,82 @@ async def update_watermark_job(
         "original_key": job.original_key,
         "original_url": StorageService().generate_presigned_url(job.original_key),
         "mask_key": job.mask_key,
-        "result_key": job.result_key,
+        "result_url": (
+            StorageService().generate_presigned_url(job.result_key)
+            if job.result_key
+            else None
+        ),
         "mode": job.mode,
         "text": job.text,
         "selection": job.selection,
         "status": job.status,
         "created_at": job.created_at,
         "updated_at": job.updated_at,
+    }
+@router.post("/{job_id}/process")
+async def process_watermark_job(
+    job_id: str,
+    data: WatermarkProcessRequest,
+    request: Request,
+    current_user: User | None = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if current_user is None:
+        guest_identifier = request.cookies.get("guest_identifier")
+
+        if not guest_identifier:
+            raise HTTPException(
+                status_code=404,
+                detail="Job not found",
+            )
+
+        result = await db.execute(
+            select(User).where(
+                User.guest_identifier == guest_identifier
+            )
+        )
+
+        current_user = result.scalar_one_or_none()
+
+        if current_user is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Job not found",
+            )
+
+    result = await db.execute(
+        select(WatermarkJob).where(
+            WatermarkJob.id == job_id,
+            WatermarkJob.user_id == current_user.id,
+        )
+    )
+
+    job = result.scalar_one_or_none()
+
+    if job is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found",
+        )
+
+    if job.status != "uploaded":
+        raise HTTPException(
+            status_code=400,
+            detail="Job is already processing or completed",
+        )
+
+    job.status = "processing"
+
+    await db.commit()
+
+    process_watermark.delay(
+        job.id,
+        current_user.id,
+        job.original_key,
+        [stroke.model_dump() for stroke in data.strokes],
+    )
+
+    return {
+        "id": job.id,
+        "status": "processing",
     }

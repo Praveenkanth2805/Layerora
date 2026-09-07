@@ -22,4 +22,7 @@ app.conf.update(
     task_acks_late=True,
 )
 
-app.conf.imports = ("app.tasks.processing",)
+app.conf.imports = (
+    "app.tasks.processing",
+    "app.tasks.watermark_processing",
+)

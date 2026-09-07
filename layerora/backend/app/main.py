@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
 from app.core.logging import setup_logging
-from app.api.v1 import auth, designs, credits, admin, webhooks, watermark_remover,
+from app.api.v1 import auth, designs, credits, admin, webhooks, watermark_remover
 from fastapi.staticfiles import StaticFiles
 settings = get_settings()
 setup_logging()

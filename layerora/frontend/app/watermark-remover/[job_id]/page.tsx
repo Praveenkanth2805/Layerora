@@ -41,27 +41,29 @@ export default function WatermarkRemoverPage() {
   }, [job_id]);
 
   const handleContinue = async () => {
-    if (!job_id || saving) return;
+  if (!job_id || saving) return;
 
-    if (mode === 'text' && !text.trim()) {
-      alert('Please enter the watermark text.');
-      return;
-    }
+  if (mode === 'text' && !text.trim()) {
+    alert('Please enter the watermark text.');
+    return;
+  }
 
-    setSaving(true);
-    try {
-      await api.patch(`/watermark-remover/${job_id}`, {
-        mode,
-        text: mode === 'text' ? text.trim() : null,
-        selection: mode === 'text' ? null : { x: 0, y: 0, width: 0, height: 0 },
-      });
-      router.push(`/watermark-remover/${job_id}/process`);
-    } catch (error) {
-      alert('Failed to save watermark settings.');
-    } finally {
-      setSaving(false);
-    }
-  };
+  setSaving(true);
+
+  try {
+    await api.patch(`/watermark-remover/${job_id}`, {
+      mode,
+      text: mode === 'text' ? text.trim() : null,
+      selection: null,
+    });
+
+    router.push(`/watermark-remover/${job_id}/process`);
+  } catch {
+    alert('Failed to save watermark settings.');
+  } finally {
+    setSaving(false);
+  }
+};
 
   if (loading) {
     return (
