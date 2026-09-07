@@ -262,7 +262,28 @@ console.log('RESULT URL:', response.result_url);
       alert('Failed to start watermark removal.');
     }
   };
+const handleDownload = async () => {
+  if (!job?.result_url) return;
 
+  try {
+    const response = await fetch(job.result_url);
+    if (!response.ok) throw new Error('Download failed');
+
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'watermark-removed.png';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(url);
+  } catch {
+    alert('Failed to download image.');
+  }
+};
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center">
@@ -298,13 +319,13 @@ console.log('RESULT URL:', response.result_url);
             />
 
             <div className="mt-6 flex justify-center gap-3">
-              <a
-                href={job.result_url}
-                download
-                className="rounded-xl bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
-              >
-                Download PNG
-              </a>
+              <button
+  type="button"
+  onClick={handleDownload}
+  className="rounded-xl bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700"
+>
+  Download PNG
+</button>
 
               <button
                 type="button"
