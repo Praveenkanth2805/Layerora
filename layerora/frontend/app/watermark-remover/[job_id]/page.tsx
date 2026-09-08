@@ -22,7 +22,7 @@ export default function WatermarkRemoverPage() {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
+  const [credits, setCredits] = useState<number | null>(null);
   useEffect(() => {
     if (!job_id) return;
     const loadJob = async () => {
@@ -39,10 +39,33 @@ export default function WatermarkRemoverPage() {
     };
     loadJob();
   }, [job_id]);
+useEffect(() => {
+  const loadCredits = async () => {
+    try {
+      const response = await api.get('/watermark-remover/credits');
+      setCredits(response.remaining);
+    } catch {
+      setCredits(null);
+    }
+  };
+  loadCredits();
+}, []);
+const handleCancel = () => {
+  if (saving) return;
 
+  router.push('/');
+};
   const handleContinue = async () => {
   if (!job_id || saving) return;
+    if (credits === null) {
+  alert('Checking watermark credits. Please wait.');
+  return;
+}
 
+if (credits <= 0) {
+  alert('No watermark removal credits remaining today.');
+  return;
+}
   if (mode === 'text' && !text.trim()) {
     alert('Please enter the watermark text.');
     return;
@@ -105,6 +128,12 @@ export default function WatermarkRemoverPage() {
           </div>
 
           <aside className="rounded-xl border p-5">
+            <div className="mb-4 rounded-lg border bg-gray-50 p-3 text-sm">
+  Watermark credits remaining:{' '}
+  <span className="font-semibold">
+    {credits === null ? 'Loading...' : credits}
+  </span>
+</div>
             <h2 className="mb-4 font-semibold">Removal Mode</h2>
 
             <div className="space-y-3">
@@ -141,14 +170,31 @@ export default function WatermarkRemoverPage() {
               />
             )}
 
-            <button
-              type="button"
-              onClick={handleContinue}
-              disabled={saving}
-              className="mt-6 w-full rounded-lg bg-blue-600 px-4 py-3 font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
-            >
-              {saving ? 'Saving...' : 'Continue'}
-            </button>
+            <div className="mt-6 flex gap-3">
+  <button
+    type="button"
+    onClick={handleCancel}
+    disabled={saving}
+    className="w-full rounded-lg border border-gray-300 px-4 py-3 font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
+  >
+    Cancel
+  </button>
+
+  <button
+    type="button"
+    onClick={handleContinue}
+    disabled={saving || credits === null || credits === 0}
+    className="w-full rounded-lg bg-blue-600 px-4 py-3 font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
+  >
+    {saving
+      ? 'Saving...'
+      : credits === null
+      ? 'Checking Credits...'
+      : credits === 0
+      ? 'No Credits'
+      : 'Continue'}
+  </button>
+</div>
           </aside>
         </div>
       </div>

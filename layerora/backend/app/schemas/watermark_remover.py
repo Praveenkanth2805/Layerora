@@ -39,7 +39,7 @@ class WatermarkStrokePoint(BaseModel):
 
 
 class WatermarkStroke(BaseModel):
-    points: list[WatermarkStrokePoint] = Field(min_length=2)
+    points: list[WatermarkStrokePoint] = Field(min_length=1)
     size: int = Field(default=32, ge=4, le=300)
 
 

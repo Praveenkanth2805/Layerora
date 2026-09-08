@@ -10,6 +10,7 @@ from app.models.watermark_remover import WatermarkJob
 from app.services.storage import StorageService
 from app.services.watermark_remover import WatermarkRemoverService
 from app.tasks.celery_app import app
+from app.services.credit_service import CreditService
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,10 @@ async def _run_watermark_processing(
             if not job:
                 raise ValueError(f"Watermark job not found: {job_id}")
 
+            if job.status == "completed":
+                logger.info("Watermark job %s already completed. Skipping.", job_id)
+                return
+                
             job.status = "processing"
             await session.commit()
 
@@ -86,6 +91,10 @@ async def _run_watermark_processing(
                 raise ValueError(f"Watermark job not found: {job_id}")
 
             job.result_key = result_key
+            await CreditService(session).consume_watermark_credit(
+                user_id,
+                job_id,
+            )
             job.status = "completed"
 
             await session.commit()

@@ -49,7 +49,10 @@ class Settings(BaseSettings):
     UPLOAD_MAX_WIDTH: int = 2048
     UPLOAD_MAX_HEIGHT: int = 2048
     AUTOSAVE_DEBOUNCE_MS: int = 1000
-
+    WATERMARK_GUEST_CREDITS: int = 2
+    WATERMARK_DAILY_CREDITS: int = 1
+    WATERMARK_GUEST_CREDITS: int = 2
+    WATERMARK_DAILY_CREDITS: int = 1
     # Celery
     CELERY_BROKER_URL: SecretStr = Field(..., alias="REDIS_URL")  # reuse Redis
     CELERY_RESULT_BACKEND: SecretStr = Field(..., alias="REDIS_URL")

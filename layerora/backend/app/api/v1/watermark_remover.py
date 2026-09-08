@@ -50,11 +50,17 @@ async def upload_watermark_image(
                 httponly=True,
                 samesite="lax",
             )
+    credit_service = CreditService(db)
 
-    balance = await CreditService(db).get_balance(current_user.id)
-    if balance["total_balance"] < 1:
-        raise HTTPException(status_code=403, detail="No free extractions remaining. Please purchase credits.")
+    credit_balance = await credit_service.get_watermark_balance(
+        current_user.id
+    )
 
+    if credit_balance["remaining"] < 1:
+        raise HTTPException(
+            status_code=403,
+            detail="No watermark removal credits remaining today.",
+        )
     allowed_types = {"image/png", "image/jpeg", "image/webp"}
     if file.content_type not in allowed_types:
         raise HTTPException(status_code=400, detail="Unsupported image type. Use PNG, JPG, JPEG or WebP.")
@@ -85,6 +91,25 @@ async def upload_watermark_image(
         "status": job.status,
     }
 
+@router.get("/credits")
+async def get_watermark_credits(
+    request: Request,
+    current_user: User | None = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if current_user is None:
+        guest_identifier = request.cookies.get("guest_identifier")
+        if not guest_identifier:
+            raise HTTPException(status_code=401, detail="User not found")
+        result = await db.execute(
+            select(User).where(User.guest_identifier == guest_identifier)
+        )
+        current_user = result.scalar_one_or_none()
+        if current_user is None:
+            raise HTTPException(status_code=401, detail="User not found")
+
+    return await CreditService(db).get_watermark_balance(current_user.id)
+
 @router.get("/{job_id}", response_model=WatermarkJobOut)
 async def get_watermark_job(
     job_id: str,
@@ -113,6 +138,14 @@ async def get_watermark_job(
         )
     )
     job = result.scalar_one_or_none()
+
+    if job is None:
+        print("API JOB: NOT FOUND", job_id)
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found",
+        )
+
     print(
         "API JOB:",
         job.id,
@@ -121,8 +154,6 @@ async def get_watermark_job(
         "RESULT KEY:",
         job.result_key,
     )
-    if job is None:
-        raise HTTPException(status_code=404, detail="Job not found")
     return {
         "id": job.id,
         "user_id": job.user_id,
@@ -204,6 +235,7 @@ async def update_watermark_job(
         "created_at": job.created_at,
         "updated_at": job.updated_at,
     }
+
 @router.post("/{job_id}/process")
 async def process_watermark_job(
     job_id: str,
@@ -256,9 +288,17 @@ async def process_watermark_job(
             detail="Job is already processing or completed",
         )
 
-    job.status = "processing"
+    credit_service = CreditService(db)
 
-    await db.commit()
+    credit_balance = await credit_service.get_watermark_balance(
+        current_user.id
+    )
+
+    if credit_balance["remaining"] < 1:
+        raise HTTPException(
+            status_code=403,
+            detail="No watermark removal credits remaining today.",
+        )
 
     process_watermark.delay(
         job.id,

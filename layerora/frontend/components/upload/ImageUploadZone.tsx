@@ -41,11 +41,18 @@ export const ImageUploadZone = () => {
   const [uploading, setUploading] = useState(false);
   const router = useRouter();
   const { showToast } = useUIStore();
-
+  const [credits, setCredits] = useState<number | null>(null);
+const [checkingCredits, setCheckingCredits] = useState(false);
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     const originalFile = acceptedFiles[0];
     if (!originalFile) return;
-
+    if (selectedTool === 'watermark-remover' && credits === 0) {
+    showToast(
+      'No watermark removal credits remaining today.',
+      'error'
+    );
+    return;
+  }
     if (originalFile.size > MAX_FILE_SIZE) {
       showToast('File too large. Max 10MB.', 'error');
       return;
@@ -71,12 +78,28 @@ export const ImageUploadZone = () => {
 
       const response = await api.post('/watermark-remover/upload', formData);
       router.push(`/watermark-remover/${response.id}`);
-    } catch {
-      showToast('Upload failed. Please try again.', 'error');
-    } finally {
+    } catch (error: unknown) {
+  const err = error as {
+    response?: {
+      data?: {
+        detail?: string;
+        message?: string;
+      };
+    };
+    message?: string;
+  };
+
+  const message =
+    err.response?.data?.detail ||
+    err.response?.data?.message ||
+    err.message ||
+    'Upload failed. Please try again.';
+
+  showToast(message, 'error');
+} finally {
       setUploading(false);
     }
-  }, [selectedTool, router, showToast]);
+  }, [selectedTool, credits, router, showToast]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -111,7 +134,19 @@ export const ImageUploadZone = () => {
 
           <button
             type="button"
-            onClick={() => setSelectedTool('watermark-remover')}
+            onClick={async () => {
+  setSelectedTool('watermark-remover');
+  setCheckingCredits(true);
+
+  try {
+    const response = await api.get('/watermark-remover/credits');
+    setCredits(response.remaining);
+  } catch {
+    setCredits(null);
+  } finally {
+    setCheckingCredits(false);
+  }
+}}
             className="rounded-xl border border-gray-200 p-6 text-left transition hover:border-blue-500 hover:shadow-md"
           >
             <div className="text-lg font-semibold">Watermark Remover</div>
@@ -147,26 +182,57 @@ export const ImageUploadZone = () => {
       </div>
 
       <div
-        {...getRootProps()}
-        className="cursor-pointer rounded-xl border-2 border-dashed border-gray-300 p-12 text-center transition hover:border-blue-500"
-      >
-        <input {...getInputProps()} />
+  {...getRootProps({
+    onClick: (event) => {
+      if (selectedTool === 'watermark-remover' && credits === 0) {
+        event.preventDefault();
 
-        {uploading ? (
-          <div>Uploading...</div>
-        ) : isDragActive ? (
-          <p>Drop the image here...</p>
-        ) : (
-          <div>
-            <p>Drag & drop an image, or click to browse</p>
-            <p className="mt-2 text-sm text-gray-500">
-              PNG, JPG, WebP up to 10MB
-            </p>
-            <p className="mt-4 text-xs text-blue-500">
-              First image free • No signup required
-            </p>
-          </div>
-        )}
+        showToast(
+          'No watermark removal credits remaining today.',
+          'error'
+        );
+      }
+    },
+  })}
+  className={`relative rounded-xl border-2 border-dashed p-12 text-center transition ${
+    selectedTool === 'watermark-remover' && credits === 0
+      ? 'cursor-not-allowed border-gray-300 bg-gray-50'
+      : 'cursor-pointer border-gray-300 hover:border-blue-500'
+  }`}
+>
+        <input {...getInputProps()} />
+{selectedTool === 'watermark-remover' && credits === 0 ? (
+  <div>
+    <p className="font-medium text-red-600">
+      No watermark removal credits remaining
+    </p>
+
+    <p className="mt-2 text-sm text-gray-500">
+      You cannot upload another image until your credits reset.
+    </p>
+
+    <p className="mt-4 text-xs text-gray-400">
+      Click or drag & drop is disabled
+    </p>
+  </div>
+) : uploading ? (
+  <div>Uploading...</div>
+) : isDragActive ? (
+  <p>Drop the image here...</p>
+) : (
+  <div>
+    <p>Drag & drop an image, or click to browse</p>
+
+    <p className="mt-2 text-sm text-gray-500">
+      PNG, JPG, WebP up to 10MB
+    </p>
+
+    <p className="mt-4 text-xs text-blue-500">
+      First image free • No signup required
+    </p>
+  </div>
+)}
+        
       </div>
     </div>
   );

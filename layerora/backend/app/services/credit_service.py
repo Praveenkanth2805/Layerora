@@ -6,6 +6,9 @@ from app.core.config import get_settings
 import uuid
 from datetime import date
 
+class InsufficientCreditsError(Exception):
+    pass
+
 class CreditService:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -85,3 +88,71 @@ class CreditService:
         )
         self.db.add(tx)
         await self.db.commit()
+    async def get_watermark_balance(self, user_id: str) -> dict:
+        from sqlalchemy import select, func
+        settings = get_settings()
+        user = await self.db.get(User, user_id)
+        if not user:
+            raise ValueError("User not found")
+        limit = settings.WATERMARK_GUEST_CREDITS if user.guest_identifier else settings.WATERMARK_DAILY_CREDITS
+        today = date.today()
+        result = await self.db.execute(
+            select(func.count(CreditTransaction.id))
+            .where(CreditTransaction.user_id == user_id)
+            .where(CreditTransaction.type == CreditTransactionType.FREE_DAILY)
+            .where(CreditTransaction.reference_id.like("watermark:%"))
+            .where(func.date(CreditTransaction.created_at) == today)
+        )
+        used = result.scalar() or 0
+        return {
+            "limit": limit,
+            "used": used,
+            "remaining": max(0, limit - used),
+        }
+    async def consume_watermark_credit(self, user_id: str, reference: str):
+        from sqlalchemy import select, func
+
+        existing = await self.db.execute(
+            select(CreditTransaction.id)
+            .where(CreditTransaction.user_id == user_id)
+            .where(CreditTransaction.type == CreditTransactionType.FREE_DAILY)
+            .where(CreditTransaction.reference_id == f"watermark:{reference}")
+            .limit(1)
+        )
+        if existing.scalar_one_or_none():
+            return
+
+        settings = get_settings()
+        user = await self.db.get(User, user_id)
+        if not user:
+            raise ValueError("User not found")
+
+        limit = (
+            settings.WATERMARK_GUEST_CREDITS
+            if user.guest_identifier
+            else settings.WATERMARK_DAILY_CREDITS
+        )
+
+        today = date.today()
+
+        used = await self.db.execute(
+            select(func.count(CreditTransaction.id))
+            .where(CreditTransaction.user_id == user_id)
+            .where(CreditTransaction.type == CreditTransactionType.FREE_DAILY)
+            .where(CreditTransaction.reference_id.like("watermark:%"))
+            .where(func.date(CreditTransaction.created_at) == today)
+        )
+        used_count = used.scalar() or 0
+
+        if used_count >= limit:
+            raise InsufficientCreditsError()
+
+        tx = CreditTransaction(
+            id=str(uuid.uuid4()),
+            user_id=user_id,
+            amount=-1,
+            type=CreditTransactionType.FREE_DAILY,
+            description="Watermark removal",
+            reference_id=f"watermark:{reference}",
+        )
+        self.db.add(tx)

@@ -12,14 +12,14 @@ export const Navbar = () => {
 
   // Navigation links (public)
   const publicLinks = [
-    { href: '/', label: 'Home' },
-    { href: '/login', label: 'Sign In' },
-    { href: '/register', label: 'Sign Up' },
-  ];
+  { href: '/', label: 'Home' },
+  { href: '/watermark-remover', label: 'Watermark Remover' },
+];
 
   // Authenticated links
   const privateLinks = [
     { href: '/', label: 'Home' },
+    { href: '/watermark-remover', label: 'Watermark Remover' },
     { href: '/designs', label: 'My Designs' },
     { href: '/credits', label: 'Credits' },
   ];
@@ -75,17 +75,11 @@ export const Navbar = () => {
           ) : (
             <div className="flex items-center space-x-2">
               <Link
-                href="/login"
-                className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/register"
-                className="px-3 py-1 border border-blue-500 text-blue-500 rounded hover:bg-blue-50 transition"
-              >
-                Sign Up
-              </Link>
+  href="/login"
+  className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+>
+  Sign In / Sign Up
+</Link>
             </div>
           )}
         </div>
@@ -145,19 +139,12 @@ export const Navbar = () => {
           ) : (
             <div className="flex flex-col space-y-2 pt-2">
               <Link
-                href="/login"
-                className="block text-center px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/register"
-                className="block text-center px-3 py-1 border border-blue-500 text-blue-500 rounded hover:bg-blue-50"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Sign Up
-              </Link>
+  href="/login"
+  className="block rounded-lg border border-gray-200 px-3 py-2 text-center text-sm font-medium text-gray-700 hover:bg-gray-50"
+  onClick={() => setIsMenuOpen(false)}
+>
+  Sign In / Sign Up
+</Link>
             </div>
           )}
         </div>
