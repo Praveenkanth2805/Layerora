@@ -55,7 +55,8 @@ class WatermarkRemoverService:
             for point in scaled:
                 cv2.circle(mask, point, brush_size // 2, 255, -1, cv2.LINE_AA)
 
-        close_size = self._env_int("WATERMARK_MASK_CLOSE_SIZE", 1, 1, 15)
+        # close_size = self._env_int("WATERMARK_MASK_CLOSE_SIZE", 1, 1, 15)
+        close_size = 1
         kernel = np.ones((close_size, close_size), np.uint8)
         return cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
 
@@ -150,13 +151,17 @@ class WatermarkRemoverService:
         return best_position
 
     def _texture_reconstruct(self, image, mask):
-        patch_size = self._env_int("WATERMARK_PATCH_SIZE", 15, 5, 51)
-        if patch_size % 2 == 0:
-            patch_size += 1
-        search_radius = self._env_int("WATERMARK_SEARCH_RADIUS", 80, 20, 300)
-        iterations = self._env_int("WATERMARK_PATCH_ITERATIONS", 2, 0, 10)
+        # patch_size = self._env_int("WATERMARK_PATCH_SIZE", 15, 5, 51)
+        # if patch_size % 2 == 0:
+        #     patch_size += 1
+        # search_radius = self._env_int("WATERMARK_SEARCH_RADIUS", 80, 20, 300)
+        # iterations = self._env_int("WATERMARK_PATCH_ITERATIONS", 2, 0, 10)
+        patch_size = 25
+        search_radius = 200
+        iterations = 4
 
         result = image.copy()
+
         if iterations == 0:
             return result
 
@@ -217,7 +222,8 @@ class WatermarkRemoverService:
         return result
 
     def _blend_result(self, original, reconstructed, mask):
-        feather = self._env_int("WATERMARK_BLEND_SIZE", 7, 1, 61)
+        # feather = self._env_int("WATERMARK_BLEND_SIZE", 7, 1, 61)
+        feather = 7
         if feather % 2 == 0:
             feather += 1
 

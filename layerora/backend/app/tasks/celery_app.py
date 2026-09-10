@@ -25,4 +25,12 @@ app.conf.update(
 app.conf.imports = (
     "app.tasks.processing",
     "app.tasks.watermark_processing",
+    "app.tasks.watermark_cleanup",
 )
+
+app.conf.beat_schedule = {
+    "cleanup-watermark-jobs-every-hour": {
+        "task": "app.tasks.watermark_cleanup.cleanup_old_watermark_jobs",
+        "schedule": 60 * 60,
+    },
+}

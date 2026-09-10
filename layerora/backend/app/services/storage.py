@@ -44,6 +44,15 @@ class StorageService:
 
         return file_path.read_bytes()
 
+    async def delete(self, key: str | None):
+        if not key:
+            return
+
+        file_path = self.base_dir / key
+
+        if file_path.exists():
+            file_path.unlink()
+
     def generate_presigned_url(
         self,
         key: str,
