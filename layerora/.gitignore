@@ -1,6 +1,3 @@
-cd ~/github/Layerora/layerora
-
-cat > .gitignore <<'EOF'
 # Environment
 .env
 .env.*
@@ -25,6 +22,9 @@ out/
 # Logs
 *.log
 
+# Celery
+celerybeat-schedule
+
 # OS
 .DS_Store
 Thumbs.db
@@ -32,4 +32,3 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
-EOF
